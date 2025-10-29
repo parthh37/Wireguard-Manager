@@ -23,6 +23,19 @@ def index():
         active_clients = len([c for c in clients if c.get('enabled', True)])
         expired_clients = len([c for c in clients if is_expired(c)])
         
+        # Get WireGuard service status
+        wg_service_status = {}
+        try:
+            wg_service_status = wg.get_service_status()
+        except Exception as e:
+            print(f"Warning: Could not get WireGuard service status: {e}")
+            wg_service_status = {
+                'service_active': False,
+                'interface_up': False,
+                'peer_count': 0,
+                'status': 'unknown'
+            }
+        
         # Get connected clients (had handshake in last 3 minutes)
         connected = 0
         total_rx = 0
@@ -66,7 +79,8 @@ def index():
                              total_rx=format_bytes(total_rx),
                              total_tx=format_bytes(total_tx),
                              total_data=format_bytes(total_rx + total_tx),
-                             recent_activity=recent_activity)
+                             recent_activity=recent_activity,
+                             wg_service_status=wg_service_status)
     except Exception as e:
         print(f"Error in dashboard: {e}")
         import traceback
@@ -81,6 +95,7 @@ def index():
                              total_tx='0 B',
                              total_data='0 B',
                              recent_activity=[],
+                             wg_service_status={'status': 'unknown'},
                              error="Dashboard temporarily unavailable")
 
 @dashboard_bp.route('/api/stats')

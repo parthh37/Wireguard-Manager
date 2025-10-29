@@ -5,6 +5,32 @@
 {% block content %}
 <h1>Dashboard</h1>
 
+{% if wg_service_status %}
+<div class="card" style="margin-bottom: 2rem; {% if wg_service_status.status == 'healthy' %}background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white;{% elif wg_service_status.status == 'unhealthy' %}background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white;{% else %}background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%); color: white;{% endif %}">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h2 style="margin: 0; color: white;">🛡️ WireGuard Service Status</h2>
+            <p style="margin: 0.5rem 0 0 0; font-size: 1.1rem; opacity: 0.9;">
+                {% if wg_service_status.status == 'healthy' %}
+                    ✅ Service Running & Healthy
+                {% elif wg_service_status.status == 'unhealthy' %}
+                    ⚠️ Service Issues Detected
+                {% else %}
+                    ❓ Status Unknown
+                {% endif %}
+            </p>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 0.9rem; opacity: 0.9;">
+                <div>Service: {% if wg_service_status.service_active %}✅ Active{% else %}❌ Inactive{% endif %}</div>
+                <div>Interface: {% if wg_service_status.interface_up %}✅ Up{% else %}❌ Down{% endif %}</div>
+                <div>Active Peers: {{ wg_service_status.peer_count }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="stats-grid">
     <div class="stat-card">
         <h3>Total Clients</h3>

@@ -14,15 +14,15 @@ class WireGuardManager:
     def generate_keypair(self) -> Tuple[str, str]:
         """Generate WireGuard private and public key pair"""
         try:
-            # Generate private key
+            # Generate private key (use full sudo path)
             private_key = subprocess.check_output(
-                ['sudo', 'wg', 'genkey'],
+                ['/usr/bin/sudo', '/usr/bin/wg', 'genkey'],
                 stderr=subprocess.PIPE
             ).decode().strip()
             
             # Generate public key from private key
             public_key = subprocess.check_output(
-                ['sudo', 'wg', 'pubkey'],
+                ['/usr/bin/sudo', '/usr/bin/wg', 'pubkey'],
                 input=private_key.encode(),
                 stderr=subprocess.PIPE
             ).decode().strip()
@@ -35,7 +35,7 @@ class WireGuardManager:
         """Generate WireGuard preshared key"""
         try:
             psk = subprocess.check_output(
-                ['sudo', 'wg', 'genpsk'],
+                ['/usr/bin/sudo', '/usr/bin/wg', 'genpsk'],
                 stderr=subprocess.PIPE
             ).decode().strip()
             return psk
@@ -199,6 +199,61 @@ PersistentKeepalive = {keepalive}
             return True
         except subprocess.CalledProcessError:
             return False
+    
+    def get_service_status(self) -> Dict:
+        """Get WireGuard service status and health information"""
+        try:
+            # Check if service is active
+            service_result = subprocess.run(
+                ['/usr/bin/systemctl', 'is-active', f'wg-quick@{self.interface}'],
+                capture_output=True,
+                text=True
+            )
+            is_active = service_result.stdout.strip() == 'active'
+            
+            # Check if interface is up
+            interface_up = self.is_interface_up()
+            
+            # Get peer count
+            peer_count = 0
+            if interface_up:
+                try:
+                    stats = self.get_stats()
+                    peer_count = len(stats.get('peers', []))
+                except:
+                    pass
+            
+            # Get uptime
+            uptime = 'Unknown'
+            try:
+                uptime_result = subprocess.run(
+                    ['/usr/bin/systemctl', 'show', f'wg-quick@{self.interface}', '-p', 'ActiveEnterTimestamp'],
+                    capture_output=True,
+                    text=True
+                )
+                if uptime_result.returncode == 0:
+                    timestamp_line = uptime_result.stdout.strip()
+                    if '=' in timestamp_line:
+                        uptime = timestamp_line.split('=', 1)[1]
+            except:
+                pass
+            
+            return {
+                'service_active': is_active,
+                'interface_up': interface_up,
+                'peer_count': peer_count,
+                'uptime': uptime,
+                'status': 'healthy' if (is_active and interface_up) else 'unhealthy'
+            }
+        except Exception as e:
+            return {
+                'service_active': False,
+                'interface_up': False,
+                'peer_count': 0,
+                'uptime': 'Unknown',
+                'status': 'error',
+                'error': str(e)
+            }
     
     def reload_interface(self):
         """Reload WireGuard interface"""

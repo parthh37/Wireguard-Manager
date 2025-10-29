@@ -90,6 +90,42 @@ def index():
     """Root route"""
     return redirect(url_for('dashboard.index'))
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for monitoring"""
+    from flask import jsonify
+    from utils.wireguard import WireGuardManager
+    from utils.storage import DataStore
+    
+    try:
+        wg = WireGuardManager()
+        store = DataStore()
+        
+        # Get WireGuard service status
+        wg_status = wg.get_service_status()
+        
+        # Check if data storage is accessible
+        try:
+            store.get_settings()
+            storage_ok = True
+        except:
+            storage_ok = False
+        
+        # Overall health status
+        overall_status = 'healthy' if (wg_status['status'] == 'healthy' and storage_ok) else 'unhealthy'
+        
+        return jsonify({
+            'status': overall_status,
+            'wireguard': wg_status,
+            'storage': 'ok' if storage_ok else 'error',
+            'version': '1.0.0'
+        }), 200 if overall_status == 'healthy' else 503
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
 @app.errorhandler(404)
 def not_found_error(error):
     """404 error handler"""
