@@ -62,6 +62,58 @@ sudo systemctl status wireguard-manager
 
 ## 🔍 Troubleshooting
 
+### ❌ WireGuard Service Showing as Inactive/Down?
+
+This means WireGuard service is not running on your server. **Run these diagnostic steps:**
+
+```bash
+# SSH to server
+ssh root@sg.gc.parthh.com
+
+# Go to installation directory
+cd ~/Wireguard-Manager
+
+# Run diagnostic script
+chmod +x diagnose-wireguard.sh
+sudo ./diagnose-wireguard.sh
+```
+
+**Common fixes:**
+
+```bash
+# 1. Check if service exists and is enabled
+sudo systemctl status wg-quick@wg0
+
+# 2. If service is disabled, enable it
+sudo systemctl enable wg-quick@wg0
+
+# 3. Start the service
+sudo systemctl start wg-quick@wg0
+
+# 4. Check config file exists
+ls -la /etc/wireguard/wg0.conf
+
+# 5. If config is missing or you want to rebuild
+sudo chmod +x fix-wireguard-service.sh
+sudo ./fix-wireguard-service.sh
+
+# 6. Check logs for errors
+sudo journalctl -u wg-quick@wg0 -n 50 --no-pager
+```
+
+**If WireGuard was never set up:**
+```bash
+# Run the fix script to create initial config
+sudo ./fix-wireguard-service.sh
+
+# This will:
+# - Install WireGuard if missing
+# - Create /etc/wireguard/wg0.conf
+# - Generate server keys
+# - Enable and start service
+# - Configure IP forwarding
+```
+
 ### Still Getting 500 Error?
 
 ```bash
