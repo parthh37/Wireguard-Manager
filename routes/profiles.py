@@ -145,6 +145,10 @@ def qr_code(profile_id):
         return "Profile not found", 404
     
     try:
+        # Validate server public key exists
+        if not Config.WG_SERVER_PUBLIC_KEY:
+            return "Server public key not configured. Please run WireGuard setup first.", 500
+        
         # Generate REAL WireGuard keys
         private_key, public_key = wg.generate_keypair()
         preshared_key = wg.generate_preshared_key()
@@ -163,20 +167,32 @@ def qr_code(profile_id):
         mtu = profile.get('mtu', '1420') or '1420'
         keepalive = profile.get('persistent_keepalive', '25') or '25'
         
-        # Build config manually
-        config = f"""[Interface]
-PrivateKey = {private_key}
-Address = {address_line}
-DNS = {dns}
-MTU = {mtu}
-
-[Peer]
-PublicKey = {Config.WG_SERVER_PUBLIC_KEY}
-PresharedKey = {preshared_key}
-Endpoint = {endpoint}
-AllowedIPs = {allowed_ips}
-PersistentKeepalive = {keepalive}
-"""
+        # Build config manually - WireGuard format (no trailing spaces, proper line breaks)
+        config_lines = [
+            "[Interface]",
+            f"PrivateKey = {private_key}",
+            f"Address = {address_line}",
+            f"DNS = {dns}"
+        ]
+        
+        # Only add MTU if not default
+        if mtu != '1420':
+            config_lines.append(f"MTU = {mtu}")
+        
+        config_lines.extend([
+            "",
+            "[Peer]",
+            f"PublicKey = {Config.WG_SERVER_PUBLIC_KEY}",
+            f"PresharedKey = {preshared_key}",
+            f"Endpoint = {endpoint}",
+            f"AllowedIPs = {allowed_ips}"
+        ])
+        
+        # Only add keepalive if specified
+        if keepalive and keepalive != '0':
+            config_lines.append(f"PersistentKeepalive = {keepalive}")
+        
+        config = '\n'.join(config_lines) + '\n'
         
         # Generate QR code as buffer
         qr_buffer = generate_qr_code_buffer(config)
@@ -203,6 +219,10 @@ def download(profile_id):
         return "Profile not found", 404
     
     try:
+        # Validate server public key exists
+        if not Config.WG_SERVER_PUBLIC_KEY:
+            return "Server public key not configured. Please run WireGuard setup first.", 500
+        
         # Generate REAL WireGuard keys
         private_key, public_key = wg.generate_keypair()
         preshared_key = wg.generate_preshared_key()
@@ -221,20 +241,32 @@ def download(profile_id):
         mtu = profile.get('mtu', '1420') or '1420'
         keepalive = profile.get('persistent_keepalive', '25') or '25'
         
-        # Build config manually
-        config_content = f"""[Interface]
-PrivateKey = {private_key}
-Address = {address_line}
-DNS = {dns}
-MTU = {mtu}
-
-[Peer]
-PublicKey = {Config.WG_SERVER_PUBLIC_KEY}
-PresharedKey = {preshared_key}
-Endpoint = {endpoint}
-AllowedIPs = {allowed_ips}
-PersistentKeepalive = {keepalive}
-"""
+        # Build config manually - WireGuard format (no trailing spaces, proper line breaks)
+        config_lines = [
+            "[Interface]",
+            f"PrivateKey = {private_key}",
+            f"Address = {address_line}",
+            f"DNS = {dns}"
+        ]
+        
+        # Only add MTU if not default
+        if mtu != '1420':
+            config_lines.append(f"MTU = {mtu}")
+        
+        config_lines.extend([
+            "",
+            "[Peer]",
+            f"PublicKey = {Config.WG_SERVER_PUBLIC_KEY}",
+            f"PresharedKey = {preshared_key}",
+            f"Endpoint = {endpoint}",
+            f"AllowedIPs = {allowed_ips}"
+        ])
+        
+        # Only add keepalive if specified
+        if keepalive and keepalive != '0':
+            config_lines.append(f"PersistentKeepalive = {keepalive}")
+        
+        config_content = '\n'.join(config_lines) + '\n'
         
         # Add header with profile info
         config_with_header = f"""# WireGuard Configuration - Profile: {profile['name']}
