@@ -16,13 +16,13 @@ class WireGuardManager:
         try:
             # Generate private key
             private_key = subprocess.check_output(
-                ['wg', 'genkey'],
+                ['sudo', 'wg', 'genkey'],
                 stderr=subprocess.PIPE
             ).decode().strip()
             
             # Generate public key from private key
             public_key = subprocess.check_output(
-                ['wg', 'pubkey'],
+                ['sudo', 'wg', 'pubkey'],
                 input=private_key.encode(),
                 stderr=subprocess.PIPE
             ).decode().strip()
@@ -35,7 +35,7 @@ class WireGuardManager:
         """Generate WireGuard preshared key"""
         try:
             psk = subprocess.check_output(
-                ['wg', 'genpsk'],
+                ['sudo', 'wg', 'genpsk'],
                 stderr=subprocess.PIPE
             ).decode().strip()
             return psk
@@ -66,7 +66,7 @@ class WireGuardManager:
         """Add peer to WireGuard interface"""
         try:
             cmd = [
-                'wg', 'set', self.interface,
+                'sudo', 'wg', 'set', self.interface,
                 'peer', public_key,
                 'preshared-key', '/dev/stdin',
                 'allowed-ips', allowed_ips
@@ -89,7 +89,7 @@ class WireGuardManager:
         """Remove peer from WireGuard interface"""
         try:
             subprocess.run(
-                ['wg', 'set', self.interface, 'peer', public_key, 'remove'],
+                ['sudo', 'wg', 'set', self.interface, 'peer', public_key, 'remove'],
                 check=True,
                 capture_output=True
             )
@@ -103,12 +103,9 @@ class WireGuardManager:
     def save_config(self):
         """Save current WireGuard configuration"""
         try:
-            with open(self.config_path, 'r') as f:
-                lines = f.readlines()
-            
             # Get current config from wg command
             result = subprocess.run(
-                ['wg', 'showconf', self.interface],
+                ['sudo', 'wg', 'showconf', self.interface],
                 capture_output=True,
                 text=True,
                 check=True
@@ -127,7 +124,7 @@ class WireGuardManager:
         """Get WireGuard interface statistics"""
         try:
             result = subprocess.run(
-                ['wg', 'show', self.interface, 'dump'],
+                ['sudo', 'wg', 'show', self.interface, 'dump'],
                 capture_output=True,
                 text=True,
                 check=True

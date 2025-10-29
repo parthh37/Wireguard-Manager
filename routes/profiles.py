@@ -31,6 +31,8 @@ def add():
         description = request.form.get('description', '').strip()
         allowed_ips = request.form.get('allowed_ips', Config.WG_ALLOWED_IPS).strip()
         dns = request.form.get('dns', Config.WG_DNS).strip()
+        persistent_keepalive = request.form.get('persistent_keepalive', '')
+        mtu = request.form.get('mtu', '1420') if request.form.get('custom_mtu') else '1420'
         
         if not name:
             flash('Profile name is required', 'error')
@@ -44,6 +46,8 @@ def add():
             'description': description,
             'allowed_ips': allowed_ips,
             'dns': dns,
+            'persistent_keepalive': persistent_keepalive,
+            'mtu': mtu,
             'created_at': datetime.now().isoformat()
         }
         

@@ -3,10 +3,32 @@
 {% block title %}Add Profile - WireGuard Manager{% endblock %}
 
 {% block content %}
-<h1>Create New Profile</h1>
+<h1>🎨 Create New Profile</h1>
 
 <div class="card">
-    <form method="POST" action="{{ url_for('profiles.add') }}">
+    <h3 style="margin-top: 0;">Quick Presets</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <button type="button" class="btn btn-secondary" onclick="applyPreset('full_tunnel')">
+            🌍 Full Tunnel
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="applyPreset('split_tunnel')">
+            🔀 Split Tunnel
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="applyPreset('ipv6_services')">
+            🌐 IPv6 Services
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="applyPreset('gaming')">
+            🎮 Gaming
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="applyPreset('streaming')">
+            📺 Streaming
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="applyPreset('privacy')">
+            🔒 Privacy + Ad Block
+        </button>
+    </div>
+    
+    <form method="POST" action="{{ url_for('profiles.add') }}" id="profileForm">
         <div class="form-group">
             <label for="name">Profile Name *</label>
             <input type="text" id="name" name="name" placeholder="e.g., Full Tunnel, Split Tunnel" required autofocus>
@@ -14,26 +36,143 @@
         
         <div class="form-group">
             <label for="description">Description</label>
-            <input type="text" id="description" name="description" placeholder="Brief description of this profile">
+            <textarea id="description" name="description" rows="2" placeholder="Brief description of this profile"></textarea>
         </div>
         
         <div class="form-group">
-            <label for="allowed_ips">Allowed IPs *</label>
-            <input type="text" id="allowed_ips" name="allowed_ips" value="{{ default_allowed_ips }}" required>
-            <small style="color: #7f8c8d;">Which traffic goes through VPN. Use 0.0.0.0/0,::/0 for all traffic</small>
+            <label for="allowed_ips">Allowed IPs * <span style="font-weight: normal; color: #7f8c8d;">(What traffic goes through VPN)</span></label>
+            <textarea id="allowed_ips" name="allowed_ips" rows="2" required>{{ default_allowed_ips }}</textarea>
+            <small style="color: #7f8c8d;">
+                <b>Examples:</b><br>
+                • 0.0.0.0/0,::/0 = All traffic (full tunnel)<br>
+                • 10.0.0.0/24 = Only VPN network<br>
+                • 192.168.1.0/24 = Specific network
+            </small>
         </div>
         
         <div class="form-group">
-            <label for="dns">DNS Servers *</label>
+            <label for="dns">DNS Servers * <span style="font-weight: normal; color: #7f8c8d;">(Comma-separated)</span></label>
             <input type="text" id="dns" name="dns" value="{{ default_dns }}" required>
-            <small style="color: #7f8c8d;">Comma-separated list of DNS servers</small>
+            <small style="color: #7f8c8d;">
+                <b>Popular DNS:</b> 
+                Cloudflare (1.1.1.1), Google (8.8.8.8), Quad9 (9.9.9.9)
+            </small>
+        </div>
+        
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="persistent_keepalive" name="persistent_keepalive" value="25">
+                Enable Persistent Keepalive (25s)
+            </label>
+            <small style="color: #7f8c8d; display: block; margin-left: 1.5rem;">
+                Helps maintain connection behind NAT. Recommended for mobile devices.
+            </small>
+        </div>
+        
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="mtu" name="custom_mtu">
+                Custom MTU (default: 1420)
+            </label>
+            <input type="number" id="mtu_value" name="mtu" value="1420" min="1280" max="1500" style="width: 100px; margin-left: 1rem;" disabled>
+            <small style="color: #7f8c8d; display: block; margin-left: 1.5rem;">
+                Lower MTU (1280-1400) can help with some networks
+            </small>
+        </div>
+        
+        <div style="padding: 1rem; background: #ecf0f1; border-radius: 5px; margin: 1rem 0;">
+            <b>📋 Profile Preview</b><br>
+            <div id="preview" style="margin-top: 0.5rem; font-family: monospace; font-size: 0.9em;"></div>
         </div>
         
         <div style="display: flex; gap: 1rem;">
-            <button type="submit" class="btn btn-primary">Create Profile</button>
+            <button type="submit" class="btn btn-primary">✨ Create Profile</button>
             <a href="{{ url_for('profiles.index') }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 </div>
+
+<script>
+// Profile presets
+const presets = {
+    full_tunnel: {
+        name: 'Full Tunnel',
+        description: 'Route all internet traffic through VPN for maximum privacy',
+        allowed_ips: '0.0.0.0/0,::/0',
+        dns: '1.1.1.1,1.0.0.1'
+    },
+    split_tunnel: {
+        name: 'Split Tunnel',
+        description: 'Only route VPN network traffic, faster for general browsing',
+        allowed_ips: '10.0.0.0/24',
+        dns: '1.1.1.1,1.0.0.1'
+    },
+    ipv6_services: {
+        name: 'Full Tunnel + IPv6 Services',
+        description: 'All traffic through VPN, host services on public IPv6',
+        allowed_ips: '0.0.0.0/0,::/0',
+        dns: '1.1.1.1,2606:4700:4700::1111'
+    },
+    gaming: {
+        name: 'Gaming',
+        description: 'Low latency for online gaming with DDoS protection',
+        allowed_ips: '0.0.0.0/0,::/0',
+        dns: '1.1.1.1,1.0.0.1'
+    },
+    streaming: {
+        name: 'Streaming',
+        description: 'Optimized for Netflix, YouTube, and other streaming services',
+        allowed_ips: '0.0.0.0/0,::/0',
+        dns: '8.8.8.8,8.8.4.4'
+    },
+    privacy: {
+        name: 'Privacy + Ad Blocking',
+        description: 'Full privacy with DNS-level ad and tracker blocking',
+        allowed_ips: '0.0.0.0/0,::/0',
+        dns: '9.9.9.9,149.112.112.112'
+    }
+};
+
+function applyPreset(preset) {
+    const data = presets[preset];
+    document.getElementById('name').value = data.name;
+    document.getElementById('description').value = data.description;
+    document.getElementById('allowed_ips').value = data.allowed_ips;
+    document.getElementById('dns').value = data.dns;
+    updatePreview();
+}
+
+function updatePreview() {
+    const name = document.getElementById('name').value || '[Profile Name]';
+    const allowedIps = document.getElementById('allowed_ips').value || '0.0.0.0/0,::/0';
+    const dns = document.getElementById('dns').value || '1.1.1.1';
+    
+    const preview = `
+<b>${name}</b>
+Allowed IPs: ${allowedIps}
+DNS: ${dns}
+Keepalive: ${document.getElementById('persistent_keepalive').checked ? '25s' : 'off'}
+MTU: ${document.getElementById('custom_mtu').checked ? document.getElementById('mtu_value').value : '1420 (default)'}
+    `.trim();
+    
+    document.getElementById('preview').textContent = preview;
+}
+
+// MTU checkbox toggle
+document.getElementById('custom_mtu').addEventListener('change', function() {
+    document.getElementById('mtu_value').disabled = !this.checked;
+    updatePreview();
+});
+
+// Update preview on input
+document.querySelectorAll('#profileForm input, #profileForm textarea').forEach(el => {
+    el.addEventListener('input', updatePreview);
+});
+
+document.getElementById('persistent_keepalive').addEventListener('change', updatePreview);
+
+// Initial preview
+updatePreview();
+</script>
 
 {% endblock %}
