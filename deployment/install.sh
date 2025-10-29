@@ -230,32 +230,75 @@ fi
 
 # Configure Nginx
 echo "Configuring Nginx..."
-if [ -f /opt/wireguard-manager/deployment/nginx.conf ]; then
-    cp /opt/wireguard-manager/deployment/nginx.conf /etc/nginx/sites-available/wireguard-manager
-else
-    echo "ERROR: nginx.conf file not found!"
-    exit 1
-fi
-sed -i "s/your-domain.com/$DOMAIN/g" /etc/nginx/sites-available/wireguard-manager
+
+# Create HTTP-only config first
+cat > /etc/nginx/sites-available/wireguard-manager << 'EOF'
+server {
+    listen 80;
+    server_name DOMAIN_PLACEHOLDER;
+    
+    # Logging
+    access_log /var/log/nginx/wireguard-manager-access.log;
+    error_log /var/log/nginx/wireguard-manager-error.log;
+    
+    # Proxy to Flask app
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+    
+    # Static files (if any)
+    location /static {
+        alias /opt/wireguard-manager/static;
+        expires 1d;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Deny access to sensitive files
+    location ~ /\. {
+        deny all;
+    }
+}
+EOF
+
+sed -i "s/DOMAIN_PLACEHOLDER/$DOMAIN/g" /etc/nginx/sites-available/wireguard-manager
 ln -sf /etc/nginx/sites-available/wireguard-manager /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
-# Set up SSL if using domain
-if [ "$USE_LETSENCRYPT" = true ]; then
-    echo "Setting up SSL certificate..."
-    certbot --nginx -d $DOMAIN --non-interactive --agree-tos --register-unsafely-without-email
-fi
-
-# Restart Nginx
-nginx -t && systemctl restart nginx
-
-# Configure firewall
+# Configure firewall BEFORE starting services
 echo "Configuring firewall..."
 ufw --force enable
 ufw allow 22/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow $WG_PORT/udp
+ufw default allow routed
+
+# Test and start Nginx
+nginx -t && systemctl restart nginx
+
+# Set up SSL if using domain
+if [ "$USE_LETSENCRYPT" = true ]; then
+    echo "Setting up SSL certificate..."
+    certbot --nginx -d $DOMAIN --non-interactive --agree-tos --register-unsafely-without-email
+    
+    if [ $? -eq 0 ]; then
+        echo "SSL certificate installed successfully"
+        # Restart Nginx with SSL
+        systemctl restart nginx
+    else
+        echo "WARNING: SSL certificate installation failed, continuing with HTTP only"
+        echo "You can manually run: sudo certbot --nginx -d $DOMAIN"
+    fi
+fi
 
 echo ""
 echo "=================================="
