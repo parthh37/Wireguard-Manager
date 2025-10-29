@@ -22,6 +22,25 @@ def generate_qr_code(data: str) -> str:
     img_str = base64.b64encode(buffer.getvalue()).decode()
     return f"data:image/png;base64,{img_str}"
 
+def generate_qr_code_buffer(data: str) -> BytesIO:
+    """Generate QR code from data and return as BytesIO buffer for file download"""
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffer = BytesIO()
+    img.save(buffer, format='PNG')
+    buffer.seek(0)
+    
+    return buffer
+
 def format_bytes(bytes_value: int) -> str:
     """Format bytes to human readable format"""
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:

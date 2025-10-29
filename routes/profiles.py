@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from utils.auth import login_required, log_action
 from utils.storage import DataStore
 from utils.wireguard import WireGuardManager
-from utils.helpers import generate_qr_code
+from utils.helpers import generate_qr_code, generate_qr_code_buffer
 from config import Config
 import uuid
 import io
@@ -139,87 +139,134 @@ def delete(profile_id):
 @profiles_bp.route('/<profile_id>/qr')
 @login_required
 def qr_code(profile_id):
-    """Generate QR code for profile (as example config)"""
+    """Generate QR code for profile with real client config"""
     profile = store.get_profile(profile_id)
     if not profile:
         flash('Profile not found', 'error')
         return redirect(url_for('profiles.index'))
     
     try:
-        # Generate example keys for demonstration
+        # Generate REAL keys for this profile's quick connect
         private_key, public_key = wg.generate_keypair()
         preshared_key = wg.generate_preshared_key()
         
-        # Create example client dict for config generation
-        example_client = {
-            'name': f"Example-{profile['name']}",
+        # Get next available IP addresses
+        clients = store.get_all_clients()
+        used_ips = [c['ip_address'] for c in clients]
+        
+        # Find next available IP in range
+        base_ip = '.'.join(Config.WG_SERVER_IP.split('.')[:-1])
+        next_ip_num = 2
+        for i in range(2, 255):
+            test_ip = f"{base_ip}.{i}"
+            if test_ip not in used_ips and test_ip != Config.WG_SERVER_IP:
+                next_ip_num = i
+                break
+        
+        ip_address = f"{base_ip}.{next_ip_num}"
+        
+        # Generate IPv6 if enabled
+        ipv6_address = None
+        if Config.WG_IPV6_ENABLED:
+            ipv6_base = Config.WG_IPV6_SUBNET.rsplit(':', 2)[0]
+            ipv6_address = f"{ipv6_base}::{next_ip_num:x}"
+        
+        # Create real client dict for config generation
+        client_data = {
+            'name': f"QuickConnect-{profile['name']}",
             'private_key': private_key,
             'public_key': public_key,
             'preshared_key': preshared_key,
-            'ip_address': '10.0.0.X',
-            'ipv6_address': '2001:db8::X' if Config.WG_IPV6_ENABLED else None
+            'ip_address': ip_address,
+            'ipv6_address': ipv6_address
         }
         
-        # Generate configuration using proper method signature
-        config = wg.generate_client_config(example_client, profile)
+        # Generate REAL configuration
+        config = wg.generate_client_config(client_data, profile)
         
-        # Generate QR code
-        qr_buffer = generate_qr_code(config)
+        # Generate QR code as buffer
+        qr_buffer = generate_qr_code_buffer(config)
         log_action('PROFILE_QR_VIEWED', {'profile_id': profile_id, 'name': profile.get('name')})
         
-        return send_file(qr_buffer, mimetype='image/png')
+        return send_file(qr_buffer, mimetype='image/png', download_name=f"{profile['name']}_qr.png")
     except Exception as e:
         print(f"Error generating QR code: {e}")
+        import traceback
+        traceback.print_exc()
         flash('Error generating QR code', 'error')
         return redirect(url_for('profiles.index'))
 
 @profiles_bp.route('/<profile_id>/download')
 @login_required
 def download(profile_id):
-    """Download profile configuration (as example)"""
+    """Download profile configuration with real keys and IPs"""
     profile = store.get_profile(profile_id)
     if not profile:
         flash('Profile not found', 'error')
         return redirect(url_for('profiles.index'))
     
     try:
-        # Generate example keys for demonstration
+        # Generate REAL keys for this profile's quick connect
         private_key, public_key = wg.generate_keypair()
         preshared_key = wg.generate_preshared_key()
         
-        # Create example client dict for config generation
-        example_client = {
-            'name': f"Example-{profile['name']}",
+        # Get next available IP addresses
+        clients = store.get_all_clients()
+        used_ips = [c['ip_address'] for c in clients]
+        
+        # Find next available IP in range
+        base_ip = '.'.join(Config.WG_SERVER_IP.split('.')[:-1])
+        next_ip_num = 2
+        for i in range(2, 255):
+            test_ip = f"{base_ip}.{i}"
+            if test_ip not in used_ips and test_ip != Config.WG_SERVER_IP:
+                next_ip_num = i
+                break
+        
+        ip_address = f"{base_ip}.{next_ip_num}"
+        
+        # Generate IPv6 if enabled
+        ipv6_address = None
+        if Config.WG_IPV6_ENABLED:
+            ipv6_base = Config.WG_IPV6_SUBNET.rsplit(':', 2)[0]
+            ipv6_address = f"{ipv6_base}::{next_ip_num:x}"
+        
+        # Create real client dict for config generation
+        client_data = {
+            'name': f"QuickConnect-{profile['name']}",
             'private_key': private_key,
             'public_key': public_key,
             'preshared_key': preshared_key,
-            'ip_address': '10.0.0.X',
-            'ipv6_address': '2001:db8::X' if Config.WG_IPV6_ENABLED else None
+            'ip_address': ip_address,
+            'ipv6_address': ipv6_address
         }
         
-        # Generate configuration using proper method signature
-        config = wg.generate_client_config(example_client, profile)
+        # Generate REAL configuration
+        config = wg.generate_client_config(client_data, profile)
         
-        # Add note at the top
-        config_with_note = f"""# Example Configuration for Profile: {profile['name']}
-# This is a template - actual client configs will have real keys and IPs
-# {profile.get('description', '')}
+        # Add header with profile info
+        config_with_header = f"""# WireGuard Configuration - Profile: {profile['name']}
+# {profile.get('description', 'Quick connect configuration')}
+# Generated with real keys - Ready to use!
+# IP: {ip_address}{f' / {ipv6_address}' if ipv6_address else ''}
 
 {config}"""
         
         # Create file buffer
-        buffer = io.BytesIO(config_with_note.encode('utf-8'))
+        buffer = io.BytesIO(config_with_header.encode('utf-8'))
         buffer.seek(0)
         
-        log_action('PROFILE_CONFIG_DOWNLOADED', {'profile_id': profile_id, 'name': profile.get('name')})
+        log_action('PROFILE_CONFIG_DOWNLOADED', {'profile_id': profile_id, 'name': profile.get('name'), 'ip': ip_address})
         
-        filename = f"{profile['name'].replace(' ', '_')}_example.conf"
+        filename = f"{profile['name'].replace(' ', '_')}.conf"
         return send_file(buffer, 
                         mimetype='text/plain',
                         as_attachment=True,
                         download_name=filename)
     except Exception as e:
         print(f"Error generating config: {e}")
+        import traceback
+        traceback.print_exc()
         flash('Error generating configuration', 'error')
         return redirect(url_for('profiles.index'))
 
