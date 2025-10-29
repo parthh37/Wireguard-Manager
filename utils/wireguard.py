@@ -167,18 +167,24 @@ class WireGuardManager:
         else:
             endpoint = f"{Config.SERVER_PUBLIC_IP}:{Config.WG_SERVER_PORT}"
         
+        # Get MTU from profile or use default
+        mtu = profile.get('mtu', Config.WG_MTU) or Config.WG_MTU
+        
+        # Get persistent keepalive from profile or use default
+        keepalive = profile.get('persistent_keepalive', Config.WG_PERSISTENT_KEEPALIVE) or Config.WG_PERSISTENT_KEEPALIVE
+        
         config = f"""[Interface]
 PrivateKey = {client['private_key']}
 Address = {address_line}
 DNS = {profile.get('dns', Config.WG_DNS)}
-MTU = {Config.WG_MTU}
+MTU = {mtu}
 
 [Peer]
 PublicKey = {Config.WG_SERVER_PUBLIC_KEY}
 PresharedKey = {client['preshared_key']}
 Endpoint = {endpoint}
 AllowedIPs = {profile.get('allowed_ips', Config.WG_ALLOWED_IPS)}
-PersistentKeepalive = {Config.WG_PERSISTENT_KEEPALIVE}
+PersistentKeepalive = {keepalive}
 """
         return config
     

@@ -142,132 +142,125 @@ def qr_code(profile_id):
     """Generate QR code for profile with real client config"""
     profile = store.get_profile(profile_id)
     if not profile:
-        flash('Profile not found', 'error')
-        return redirect(url_for('profiles.index'))
+        return "Profile not found", 404
     
     try:
-        # Generate REAL keys for this profile's quick connect
+        # Generate REAL WireGuard keys
         private_key, public_key = wg.generate_keypair()
         preshared_key = wg.generate_preshared_key()
         
-        # Get next available IP addresses
-        clients = store.get_all_clients()
-        used_ips = [c['ip_address'] for c in clients]
-        
-        # Find next available IP in range
-        base_ip = '.'.join(Config.WG_SERVER_IP.split('.')[:-1])
-        next_ip_num = 2
-        for i in range(2, 255):
-            test_ip = f"{base_ip}.{i}"
-            if test_ip not in used_ips and test_ip != Config.WG_SERVER_IP:
-                next_ip_num = i
-                break
-        
-        ip_address = f"{base_ip}.{next_ip_num}"
-        
-        # Generate IPv6 if enabled
-        ipv6_address = None
+        # Build Address line
+        address_line = "10.0.0.X/32"
         if Config.WG_IPV6_ENABLED:
-            ipv6_base = Config.WG_IPV6_SUBNET.rsplit(':', 2)[0]
-            ipv6_address = f"{ipv6_base}::{next_ip_num:x}"
+            address_line += ", 2a11:8083:11:13f0::X/128"
         
-        # Create real client dict for config generation
-        client_data = {
-            'name': f"QuickConnect-{profile['name']}",
-            'private_key': private_key,
-            'public_key': public_key,
-            'preshared_key': preshared_key,
-            'ip_address': ip_address,
-            'ipv6_address': ipv6_address
-        }
+        # Build endpoint
+        endpoint = f"{Config.SERVER_PUBLIC_IP}:{Config.WG_SERVER_PORT}"
         
-        # Generate REAL configuration
-        config = wg.generate_client_config(client_data, profile)
+        # Get profile settings with defaults
+        dns = profile.get('dns', Config.WG_DNS) or Config.WG_DNS
+        allowed_ips = profile.get('allowed_ips', Config.WG_ALLOWED_IPS) or Config.WG_ALLOWED_IPS
+        mtu = profile.get('mtu', '1420') or '1420'
+        keepalive = profile.get('persistent_keepalive', '25') or '25'
+        
+        # Build config manually
+        config = f"""[Interface]
+PrivateKey = {private_key}
+Address = {address_line}
+DNS = {dns}
+MTU = {mtu}
+
+[Peer]
+PublicKey = {Config.WG_SERVER_PUBLIC_KEY}
+PresharedKey = {preshared_key}
+Endpoint = {endpoint}
+AllowedIPs = {allowed_ips}
+PersistentKeepalive = {keepalive}
+"""
         
         # Generate QR code as buffer
         qr_buffer = generate_qr_code_buffer(config)
         log_action('PROFILE_QR_VIEWED', {'profile_id': profile_id, 'name': profile.get('name')})
         
-        return send_file(qr_buffer, mimetype='image/png', download_name=f"{profile['name']}_qr.png")
+        return send_file(
+            qr_buffer,
+            mimetype='image/png',
+            as_attachment=False,
+            download_name=f"{profile['name']}_qr.png"
+        )
     except Exception as e:
-        print(f"Error generating QR code: {e}")
         import traceback
-        traceback.print_exc()
-        flash('Error generating QR code', 'error')
-        return redirect(url_for('profiles.index'))
+        error_msg = traceback.format_exc()
+        print(f"Error generating QR code: {error_msg}")
+        return f"Error generating QR code: {str(e)}", 500
 
 @profiles_bp.route('/<profile_id>/download')
 @login_required
 def download(profile_id):
-    """Download profile configuration with real keys and IPs"""
+    """Download profile configuration with real keys"""
     profile = store.get_profile(profile_id)
     if not profile:
-        flash('Profile not found', 'error')
-        return redirect(url_for('profiles.index'))
+        return "Profile not found", 404
     
     try:
-        # Generate REAL keys for this profile's quick connect
+        # Generate REAL WireGuard keys
         private_key, public_key = wg.generate_keypair()
         preshared_key = wg.generate_preshared_key()
         
-        # Get next available IP addresses
-        clients = store.get_all_clients()
-        used_ips = [c['ip_address'] for c in clients]
-        
-        # Find next available IP in range
-        base_ip = '.'.join(Config.WG_SERVER_IP.split('.')[:-1])
-        next_ip_num = 2
-        for i in range(2, 255):
-            test_ip = f"{base_ip}.{i}"
-            if test_ip not in used_ips and test_ip != Config.WG_SERVER_IP:
-                next_ip_num = i
-                break
-        
-        ip_address = f"{base_ip}.{next_ip_num}"
-        
-        # Generate IPv6 if enabled
-        ipv6_address = None
+        # Build Address line
+        address_line = "10.0.0.X/32"
         if Config.WG_IPV6_ENABLED:
-            ipv6_base = Config.WG_IPV6_SUBNET.rsplit(':', 2)[0]
-            ipv6_address = f"{ipv6_base}::{next_ip_num:x}"
+            address_line += ", 2a11:8083:11:13f0::X/128"
         
-        # Create real client dict for config generation
-        client_data = {
-            'name': f"QuickConnect-{profile['name']}",
-            'private_key': private_key,
-            'public_key': public_key,
-            'preshared_key': preshared_key,
-            'ip_address': ip_address,
-            'ipv6_address': ipv6_address
-        }
+        # Build endpoint
+        endpoint = f"{Config.SERVER_PUBLIC_IP}:{Config.WG_SERVER_PORT}"
         
-        # Generate REAL configuration
-        config = wg.generate_client_config(client_data, profile)
+        # Get profile settings with defaults
+        dns = profile.get('dns', Config.WG_DNS) or Config.WG_DNS
+        allowed_ips = profile.get('allowed_ips', Config.WG_ALLOWED_IPS) or Config.WG_ALLOWED_IPS
+        mtu = profile.get('mtu', '1420') or '1420'
+        keepalive = profile.get('persistent_keepalive', '25') or '25'
+        
+        # Build config manually
+        config_content = f"""[Interface]
+PrivateKey = {private_key}
+Address = {address_line}
+DNS = {dns}
+MTU = {mtu}
+
+[Peer]
+PublicKey = {Config.WG_SERVER_PUBLIC_KEY}
+PresharedKey = {preshared_key}
+Endpoint = {endpoint}
+AllowedIPs = {allowed_ips}
+PersistentKeepalive = {keepalive}
+"""
         
         # Add header with profile info
         config_with_header = f"""# WireGuard Configuration - Profile: {profile['name']}
 # {profile.get('description', 'Quick connect configuration')}
-# Generated with real keys - Ready to use!
-# IP: {ip_address}{f' / {ipv6_address}' if ipv6_address else ''}
+# Generated with REAL keys - Replace X with your assigned IP number
+# Contact admin to get your IP assignment
 
-{config}"""
+{config_content}"""
         
         # Create file buffer
         buffer = io.BytesIO(config_with_header.encode('utf-8'))
         buffer.seek(0)
         
-        log_action('PROFILE_CONFIG_DOWNLOADED', {'profile_id': profile_id, 'name': profile.get('name'), 'ip': ip_address})
+        log_action('PROFILE_CONFIG_DOWNLOADED', {'profile_id': profile_id, 'name': profile.get('name')})
         
         filename = f"{profile['name'].replace(' ', '_')}.conf"
-        return send_file(buffer, 
-                        mimetype='text/plain',
-                        as_attachment=True,
-                        download_name=filename)
+        return send_file(
+            buffer,
+            mimetype='text/plain',
+            as_attachment=True,
+            download_name=filename
+        )
     except Exception as e:
-        print(f"Error generating config: {e}")
         import traceback
-        traceback.print_exc()
-        flash('Error generating configuration', 'error')
-        return redirect(url_for('profiles.index'))
+        error_msg = traceback.format_exc()
+        print(f"Error generating config: {error_msg}")
+        return f"Error generating config: {str(e)}", 500
 
 from datetime import datetime
