@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Usage Statistics - WireGuard Manager{% endblock %}
+
+{% block content %}
+<h1>Usage Statistics</h1>
+
+<div class="card">
+    <h2>Current Data Usage by Client</h2>
+    
+    {% if client_usage %}
+    <table>
+        <thead>
+            <tr>
+                <th>Client</th>
+                <th>IP Address</th>
+                <th>Downloaded</th>
+                <th>Uploaded</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for usage in client_usage %}
+            <tr>
+                <td><strong>{{ usage.name }}</strong></td>
+                <td><code>{{ usage.ip_address }}</code></td>
+                <td>{{ usage.transfer_rx_formatted }}</td>
+                <td>{{ usage.transfer_tx_formatted }}</td>
+                <td><strong>{{ usage.transfer_total_formatted }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align: center; color: #7f8c8d; padding: 2rem;">No usage data available</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Historical Usage (Last 30 Days)</h2>
+    
+    {% if historical_data %}
+    <canvas id="usageChart" style="max-height: 400px;"></canvas>
+    {% else %}
+    <p style="text-align: center; color: #7f8c8d; padding: 2rem;">No historical data available yet</p>
+    {% endif %}
+</div>
+
+{% if historical_data %}
+<div class="card">
+    <h2>Daily Breakdown</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Downloaded</th>
+                <th>Uploaded</th>
+                <th>Total</th>
+                <th>Active Clients</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for snapshot in historical_data|reverse %}
+            <tr>
+                <td>{{ snapshot.date }}</td>
+                <td>{{ (snapshot.total_rx / 1024 / 1024 / 1024)|round(2) }} GB</td>
+                <td>{{ (snapshot.total_tx / 1024 / 1024 / 1024)|round(2) }} GB</td>
+                <td><strong>{{ ((snapshot.total_rx + snapshot.total_tx) / 1024 / 1024 / 1024)|round(2) }} GB</strong></td>
+                <td>{{ snapshot.clients|length }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if historical_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const ctx = document.getElementById('usageChart').getContext('2d');
+
+const labels = [
+    {% for snapshot in historical_data %}
+    '{{ snapshot.date }}',
+    {% endfor %}
+];
+
+const rxData = [
+    {% for snapshot in historical_data %}
+    {{ (snapshot.total_rx / 1024 / 1024 / 1024) }},
+    {% endfor %}
+];
+
+const txData = [
+    {% for snapshot in historical_data %}
+    {{ (snapshot.total_tx / 1024 / 1024 / 1024) }},
+    {% endfor %}
+];
+
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [
+            {
+                label: 'Download (GB)',
+                data: rxData,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            },
+            {
+                label: 'Upload (GB)',
+                data: txData,
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                tension: 0.1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Data (GB)'
+                }
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

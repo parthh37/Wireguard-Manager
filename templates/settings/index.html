@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - WireGuard Manager{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+
+<div class="card">
+    <h2>WireGuard Status</h2>
+    
+    <table>
+        <tr>
+            <th style="width: 200px;">Interface Status</th>
+            <td>
+                {% if wg_status.interface_up %}
+                    <span class="badge badge-success">● Running</span>
+                {% else %}
+                    <span class="badge badge-danger">○ Down</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Interface</th>
+            <td><code>{{ wg_status.interface }}</code></td>
+        </tr>
+        <tr>
+            <th>Server IP</th>
+            <td><code>{{ wg_status.server_ip }}</code></td>
+        </tr>
+        <tr>
+            <th>Port</th>
+            <td><code>{{ wg_status.server_port }}</code></td>
+        </tr>
+        <tr>
+            <th>Public Endpoint</th>
+            <td><code>{{ wg_status.public_ip }}:{{ wg_status.server_port }}</code></td>
+        </tr>
+    </table>
+    
+    <form method="POST" action="{{ url_for('settings.restart_wireguard') }}" style="margin-top: 1rem;" onsubmit="return confirm('Are you sure you want to restart WireGuard? This will temporarily disconnect all clients.');">
+        <button type="submit" class="btn btn-warning">Restart WireGuard Interface</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Change Password</h2>
+    
+    <form method="POST" action="{{ url_for('settings.change_password') }}">
+        <div class="form-group">
+            <label for="current_password">Current Password</label>
+            <input type="password" id="current_password" name="current_password" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="new_password">New Password</label>
+            <input type="password" id="new_password" name="new_password" required minlength="8">
+        </div>
+        
+        <div class="form-group">
+            <label for="confirm_password">Confirm New Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Change Password</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Backup & Restore</h2>
+    
+    <div style="margin-bottom: 1.5rem;">
+        <form method="POST" action="{{ url_for('settings.create_backup') }}" style="display: inline;">
+            <button type="submit" class="btn btn-success">Create Backup Now</button>
+        </form>
+        
+        <p style="margin-top: 0.5rem; color: #7f8c8d;">
+            Automatic backups: {% if config.AUTO_BACKUP_ENABLED %}<strong>Enabled</strong> (daily at {{ config.AUTO_BACKUP_HOUR }}:00){% else %}<strong>Disabled</strong>{% endif %}
+        </p>
+    </div>
+    
+    {% if backups %}
+    <table>
+        <thead>
+            <tr>
+                <th>Backup File</th>
+                <th>Created</th>
+                <th>Size</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for backup in backups %}
+            <tr>
+                <td><code>{{ backup.filename }}</code></td>
+                <td>{{ backup.created }}</td>
+                <td>{{ (backup.size / 1024)|round(2) }} KB</td>
+                <td>
+                    <a href="{{ url_for('settings.download_backup', filename=backup.filename) }}" class="btn btn-primary btn-sm">Download</a>
+                    <form method="POST" action="{{ url_for('settings.restore_backup', filename=backup.filename) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to restore this backup? Current data will be replaced.');">
+                        <button type="submit" class="btn btn-warning btn-sm">Restore</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('settings.delete_backup', filename=backup.filename) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this backup?');">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #7f8c8d;">No backups available</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>System Information</h2>
+    
+    <table>
+        <tr>
+            <th style="width: 200px;">Session Timeout</th>
+            <td>{{ config.SESSION_TIMEOUT // 60 }} minutes</td>
+        </tr>
+        <tr>
+            <th>2FA Enabled</th>
+            <td>{% if config.ENABLE_2FA %}<span class="badge badge-success">Yes</span>{% else %}<span class="badge badge-danger">No</span>{% endif %}</td>
+        </tr>
+        <tr>
+            <th>IP Whitelist</th>
+            <td>{% if config.IP_WHITELIST %}{{ config.IP_WHITELIST|join(', ') }}{% else %}<span class="badge badge-warning">All IPs allowed</span>{% endif %}</td>
+        </tr>
+        <tr>
+            <th>Backup Retention</th>
+            <td>{{ config.BACKUP_RETENTION_DAYS }} days</td>
+        </tr>
+    </table>
+</div>
+
+{% endblock %}

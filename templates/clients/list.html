@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Clients - WireGuard Manager{% endblock %}
+
+{% block content %}
+<div class="flex-between">
+    <h1>VPN Clients</h1>
+    <a href="{{ url_for('clients.add') }}" class="btn btn-primary">+ Add New Client</a>
+</div>
+
+<div class="card">
+    {% if clients %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>IPv4 Address</th>
+                <th>IPv6 Address</th>
+                <th>Profile</th>
+                <th>Status</th>
+                <th>Connected</th>
+                <th>Data Usage</th>
+                <th>Last Seen</th>
+                <th>Expiry</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for client in clients %}
+            <tr>
+                <td><strong>{{ client.name }}</strong></td>
+                <td><code>{{ client.ip_address }}</code></td>
+                <td>
+                    {% if client.ipv6_address %}
+                        <code style="font-size: 0.85em;">{{ client.ipv6_address }}</code>
+                    {% else %}
+                        <span style="color: #95a5a6;">-</span>
+                    {% endif %}
+                </td>
+                <td>{{ client.profile_name }}</td>
+                <td>
+                    {% if client.is_expired %}
+                        <span class="badge badge-danger">Expired</span>
+                    {% elif client.enabled %}
+                        <span class="badge badge-success">Active</span>
+                    {% else %}
+                        <span class="badge badge-warning">Disabled</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if client.stats.connected %}
+                        <span class="badge badge-success">● Online</span>
+                    {% else %}
+                        <span class="badge badge-danger">○ Offline</span>
+                    {% endif %}
+                </td>
+                <td>{{ client.stats.transfer_total }}</td>
+                <td>{{ client.stats.last_handshake }}</td>
+                <td>{{ client.expiry_formatted }}</td>
+                <td>
+                    <a href="{{ url_for('clients.view', client_id=client.id) }}" class="btn btn-primary btn-sm">View</a>
+                    <button onclick="toggleClient('{{ client.id }}', {{ 'true' if client.enabled else 'false' }})" class="btn btn-secondary btn-sm">
+                        {% if client.enabled %}Disable{% else %}Enable{% endif %}
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align: center; color: #7f8c8d; padding: 2rem;">
+        No clients yet. <a href="{{ url_for('clients.add') }}">Add your first client</a>
+    </p>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleClient(clientId, currentState) {
+    if (!confirm('Are you sure you want to ' + (currentState ? 'disable' : 'enable') + ' this client?')) {
+        return;
+    }
+    
+    fetch('/clients/' + clientId + '/toggle', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+</script>
+{% endblock %}

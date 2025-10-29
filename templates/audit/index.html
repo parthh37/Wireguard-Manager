@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log - WireGuard Manager{% endblock %}
+
+{% block content %}
+<div class="flex-between">
+    <h1>Audit Log</h1>
+    <div>
+        <a href="?days=1" class="btn btn-secondary btn-sm {% if days == 1 %}active{% endif %}">Today</a>
+        <a href="?days=7" class="btn btn-secondary btn-sm {% if days == 7 %}active{% endif %}">7 Days</a>
+        <a href="?days=30" class="btn btn-secondary btn-sm {% if days == 30 %}active{% endif %}">30 Days</a>
+    </div>
+</div>
+
+<div class="card">
+    {% if logs %}
+    <table>
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Action</th>
+                <th>User</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in logs %}
+            <tr>
+                <td>{{ entry.timestamp[:19] }}</td>
+                <td><strong>{{ entry.action.replace('_', ' ').title() }}</strong></td>
+                <td>
+                    {% if entry.user == 'system' %}
+                        <span class="badge badge-info">System</span>
+                    {% else %}
+                        {{ entry.user }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if entry.details %}
+                        {% for key, value in entry.details.items() %}
+                            <strong>{{ key }}:</strong> {{ value }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align: center; color: #7f8c8d; padding: 2rem;">No audit logs found for the selected period</p>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - WireGuard Manager{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Clients</h3>
+        <div class="value">{{ total_clients }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Active Clients</h3>
+        <div class="value" style="color: #27ae60;">{{ active_clients }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Connected Now</h3>
+        <div class="value" style="color: #3498db;">{{ connected_clients }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Expired</h3>
+        <div class="value" style="color: #e74c3c;">{{ expired_clients }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Total Data</h3>
+        <div class="value" style="font-size: 1.5rem;">{{ total_data }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Download</h3>
+        <div class="value" style="font-size: 1.5rem;">{{ total_rx }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Upload</h3>
+        <div class="value" style="font-size: 1.5rem;">{{ total_tx }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="flex-between">
+        <h2>Recent Activity</h2>
+        <a href="{{ url_for('audit.index') }}" class="btn btn-secondary btn-sm">View All</a>
+    </div>
+    
+    {% if recent_activity %}
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Action</th>
+                <th>User</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in recent_activity %}
+            <tr>
+                <td>{{ entry.timestamp[:19] }}</td>
+                <td><strong>{{ entry.action.replace('_', ' ').title() }}</strong></td>
+                <td>{{ entry.user }}</td>
+                <td>
+                    {% if entry.details %}
+                        {% for key, value in entry.details.items() %}
+                            {{ key }}: {{ value }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align: center; color: #7f8c8d; padding: 2rem;">No recent activity</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="flex-between">
+        <h2>Quick Actions</h2>
+    </div>
+    
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <a href="{{ url_for('clients.add') }}" class="btn btn-primary">+ Add New Client</a>
+        <a href="{{ url_for('profiles.add') }}" class="btn btn-success">+ Create Profile</a>
+        <a href="{{ url_for('clients.index') }}" class="btn btn-secondary">View All Clients</a>
+        <a href="{{ url_for('usage.index') }}" class="btn btn-secondary">Usage Statistics</a>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh stats every 30 seconds
+    setInterval(function() {
+        fetch('{{ url_for("dashboard.api_stats") }}')
+            .then(response => response.json())
+            .then(data => {
+                // Update connected clients count
+                document.querySelectorAll('.stat-card')[2].querySelector('.value').textContent = data.connected_clients;
+            });
+    }, 30000);
+</script>
+{% endblock %}

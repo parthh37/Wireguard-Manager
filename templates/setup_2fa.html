@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Setup 2FA - WireGuard Manager{% endblock %}
+
+{% block content %}
+<style>
+    .setup-container {
+        max-width: 500px;
+        margin: 4rem auto;
+    }
+    
+    .setup-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .setup-card h2 {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    .qr-container {
+        text-align: center;
+        margin: 2rem 0;
+    }
+    
+    .qr-container img {
+        max-width: 250px;
+        border: 1px solid #ddd;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+    
+    .secret-code {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 4px;
+        text-align: center;
+        font-family: monospace;
+        margin: 1rem 0;
+        word-break: break-all;
+    }
+</style>
+
+<div class="setup-container">
+    <div class="setup-card">
+        <h2>🔐 Setup Two-Factor Authentication</h2>
+        
+        <div class="alert alert-info">
+            Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+        </div>
+        
+        <div class="qr-container">
+            <img src="{{ qr_code }}" alt="2FA QR Code">
+        </div>
+        
+        <p style="text-align: center; margin-bottom: 0.5rem;"><strong>Or enter this code manually:</strong></p>
+        <div class="secret-code">{{ secret }}</div>
+        
+        <form method="POST" action="{{ url_for('auth.setup_2fa') }}">
+            <div class="form-group">
+                <label for="token">Enter 6-digit code from your app</label>
+                <input type="text" id="token" name="token" placeholder="000000" required pattern="[0-9]{6}" maxlength="6" autofocus style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem;">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Verify & Complete Setup</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Add Profile - WireGuard Manager{% endblock %}
+
+{% block content %}
+<h1>Create New Profile</h1>
+
+<div class="card">
+    <form method="POST" action="{{ url_for('profiles.add') }}">
+        <div class="form-group">
+            <label for="name">Profile Name *</label>
+            <input type="text" id="name" name="name" placeholder="e.g., Full Tunnel, Split Tunnel" required autofocus>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description</label>
+            <input type="text" id="description" name="description" placeholder="Brief description of this profile">
+        </div>
+        
+        <div class="form-group">
+            <label for="allowed_ips">Allowed IPs *</label>
+            <input type="text" id="allowed_ips" name="allowed_ips" value="{{ default_allowed_ips }}" required>
+            <small style="color: #7f8c8d;">Which traffic goes through VPN. Use 0.0.0.0/0,::/0 for all traffic</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="dns">DNS Servers *</label>
+            <input type="text" id="dns" name="dns" value="{{ default_dns }}" required>
+            <small style="color: #7f8c8d;">Comma-separated list of DNS servers</small>
+        </div>
+        
+        <div style="display: flex; gap: 1rem;">
+            <button type="submit" class="btn btn-primary">Create Profile</button>
+            <a href="{{ url_for('profiles.index') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

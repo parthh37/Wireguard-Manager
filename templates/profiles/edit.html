@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - WireGuard Manager{% endblock %}
+
+{% block content %}
+<h1>Edit Profile: {{ profile.name }}</h1>
+
+<div class="card">
+    <form method="POST" action="{{ url_for('profiles.edit', profile_id=profile.id) }}">
+        <div class="form-group">
+            <label for="name">Profile Name *</label>
+            <input type="text" id="name" name="name" value="{{ profile.name }}" required autofocus>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description</label>
+            <input type="text" id="description" name="description" value="{{ profile.description }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="allowed_ips">Allowed IPs *</label>
+            <input type="text" id="allowed_ips" name="allowed_ips" value="{{ profile.allowed_ips }}" required>
+            <small style="color: #7f8c8d;">Which traffic goes through VPN</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="dns">DNS Servers *</label>
+            <input type="text" id="dns" name="dns" value="{{ profile.dns }}" required>
+            <small style="color: #7f8c8d;">Comma-separated list of DNS servers</small>
+        </div>
+        
+        <div style="display: flex; gap: 1rem;">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{{ url_for('profiles.index') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

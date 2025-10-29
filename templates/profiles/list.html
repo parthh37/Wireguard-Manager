@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Profiles - WireGuard Manager{% endblock %}
+
+{% block content %}
+<div class="flex-between">
+    <h1>Connection Profiles</h1>
+    <a href="{{ url_for('profiles.add') }}" class="btn btn-primary">+ Create Profile</a>
+</div>
+
+<div class="card">
+    <p style="color: #7f8c8d; margin-bottom: 1rem;">
+        Profiles define connection settings like which traffic goes through the VPN and which DNS servers to use.
+    </p>
+    
+    {% if profiles %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Allowed IPs</th>
+                <th>DNS</th>
+                <th>Clients</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for profile in profiles %}
+            <tr>
+                <td><strong>{{ profile.name }}</strong></td>
+                <td>{{ profile.description }}</td>
+                <td><code>{{ profile.allowed_ips }}</code></td>
+                <td><code>{{ profile.dns }}</code></td>
+                <td>{{ profile.client_count }}</td>
+                <td>
+                    <a href="{{ url_for('profiles.edit', profile_id=profile.id) }}" class="btn btn-primary btn-sm">Edit</a>
+                    {% if profile.client_count == 0 %}
+                    <form method="POST" action="{{ url_for('profiles.delete', profile_id=profile.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this profile?');">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align: center; color: #7f8c8d; padding: 2rem;">
+        No profiles yet. <a href="{{ url_for('profiles.add') }}">Create your first profile</a>
+    </p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>About Profiles</h2>
+    <p><strong>Allowed IPs</strong> determines what traffic goes through the VPN:</p>
+    <ul style="margin-left: 2rem; margin-top: 0.5rem;">
+        <li><code>0.0.0.0/0,::/0</code> - All traffic (full tunnel)</li>
+        <li><code>10.0.0.0/8,192.168.0.0/16</code> - Only private networks</li>
+        <li><code>specific IP/32</code> - Only specific destinations</li>
+    </ul>
+    
+    <p style="margin-top: 1rem;"><strong>DNS</strong> specifies which DNS servers clients should use:</p>
+    <ul style="margin-left: 2rem; margin-top: 0.5rem;">
+        <li><code>1.1.1.1,1.0.0.1</code> - Cloudflare DNS</li>
+        <li><code>8.8.8.8,8.8.4.4</code> - Google DNS</li>
+        <li><code>10.0.0.1</code> - Server's DNS (if configured)</li>
+    </ul>
+</div>
+
+{% endblock %}

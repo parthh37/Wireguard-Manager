@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}{{ client.name }} - WireGuard Manager{% endblock %}
+
+{% block content %}
+<div class="flex-between">
+    <h1>{{ client.name }}</h1>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('clients.download', client_id=client.id) }}" class="btn btn-primary">⬇ Download Config</a>
+        <button onclick="extendExpiry()" class="btn btn-success">Extend Expiry</button>
+        <form method="POST" action="{{ url_for('clients.delete', client_id=client.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this client? This cannot be undone.');">
+            <button type="submit" class="btn btn-danger">Delete</button>
+        </form>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Connection Status</h3>
+        <div class="value" style="font-size: 1.2rem;">
+            {% if client.stats.connected %}
+                <span style="color: #27ae60;">● Connected</span>
+            {% else %}
+                <span style="color: #e74c3c;">○ Disconnected</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Data Downloaded</h3>
+        <div class="value" style="font-size: 1.5rem;">{{ client.stats.transfer_rx }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Data Uploaded</h3>
+        <div class="value" style="font-size: 1.5rem;">{{ client.stats.transfer_tx }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Total Usage</h3>
+        <div class="value" style="font-size: 1.5rem;">{{ client.stats.transfer_total }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Last Handshake</h3>
+        <div class="value" style="font-size: 1.2rem;">{{ client.stats.last_handshake }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Endpoint</h3>
+        <div class="value" style="font-size: 1rem;">{{ client.stats.endpoint }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>QR Code</h2>
+    <p>Scan this QR code with the WireGuard mobile app to connect instantly:</p>
+    <div style="text-align: center; margin: 2rem 0;">
+        <img src="{{ qr_code }}" alt="WireGuard Config QR Code" style="max-width: 300px; border: 1px solid #ddd; padding: 1rem; border-radius: 8px;">
+    </div>
+</div>
+
+<div class="card">
+    <h2>Client Details</h2>
+    <table>
+        <tr>
+            <th style="width: 200px;">Name</th>
+            <td>{{ client.name }}</td>
+        </tr>
+        <tr>
+            <th>IP Address</th>
+            <td><code>{{ client.ip_address }}</code></td>
+        </tr>
+        {% if client.ipv6_address %}
+        <tr>
+            <th>IPv6 Address</th>
+            <td>
+                <code>{{ client.ipv6_address }}</code>
+                <br>
+                <small style="color: #27ae60;">✓ Publicly routable - services can be hosted on this address</small>
+            </td>
+        </tr>
+        {% endif %}
+        <tr>
+            <th>Public Key</th>
+            <td><code style="word-break: break-all;">{{ client.public_key }}</code></td>
+        </tr>
+        <tr>
+            <th>Profile</th>
+            <td>{{ profile.name }}</td>
+        </tr>
+        <tr>
+            <th>Created</th>
+            <td>{{ client.created_at[:19] }}</td>
+        </tr>
+        <tr>
+            <th>Expiry</th>
+            <td id="expiry-date">
+                {% if client.expiry_date %}
+                    {{ client.expiry_date[:19] }}
+                {% else %}
+                    Never
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Status</th>
+            <td>
+                {% if client.enabled %}
+                    <span class="badge badge-success">Active</span>
+                {% else %}
+                    <span class="badge badge-danger">Disabled</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% if client.notes %}
+        <tr>
+            <th>Notes</th>
+            <td>{{ client.notes }}</td>
+        </tr>
+        {% endif %}
+    </table>
+</div>
+
+<div class="card">
+    <h2>Configuration File</h2>
+    <pre style="background: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto;"><code>{{ config }}</code></pre>
+</div>
+
+<div style="margin-top: 1rem;">
+    <a href="{{ url_for('clients.index') }}" class="btn btn-secondary">← Back to Clients</a>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function extendExpiry() {
+    const days = prompt('Enter number of days to extend:', '30');
+    if (!days || isNaN(days) || days < 1) {
+        return;
+    }
+    
+    fetch('/clients/{{ client.id }}/extend', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ days: parseInt(days) })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('expiry-date').textContent = data.expiry_date;
+            alert('Expiry extended successfully!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+</script>
+{% endblock %}
