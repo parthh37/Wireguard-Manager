@@ -16,6 +16,13 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SOURCE_DIR="$(dirname "$SCRIPT_DIR")"
+
+echo "Installation source: $SOURCE_DIR"
+echo ""
+
 # Get server public IP
 echo "Detecting server public IP..."
 SERVER_IP=$(curl -s https://api.ipify.org)
@@ -128,15 +135,17 @@ systemctl start wg-quick@wg0 || systemctl restart wg-quick@wg0
 
 # Set up application
 echo "Setting up WireGuard Manager application..."
-mkdir -p /opt/wireguard-manager
-cd /opt/wireguard-manager
 
-# Copy application files (assuming they're in current directory)
-if [ -d "$(pwd)/wireguard-manager" ]; then
-    cp -r $(pwd)/wireguard-manager/* /opt/wireguard-manager/
+# Copy application files to /opt/wireguard-manager
+if [ "$SOURCE_DIR" != "/opt/wireguard-manager" ]; then
+    echo "Copying files from $SOURCE_DIR to /opt/wireguard-manager..."
+    mkdir -p /opt/wireguard-manager
+    cp -r "$SOURCE_DIR"/* /opt/wireguard-manager/
 else
-    echo "Note: Copy your application files to /opt/wireguard-manager/"
+    echo "Already in /opt/wireguard-manager"
 fi
+
+cd /opt/wireguard-manager
 
 # Create virtual environment
 python3 -m venv venv
@@ -192,8 +201,8 @@ BACKUP_RETENTION_DAYS=30
 EOF
 
 # Create directories
-mkdir -p data backups logs
-mkdir -p data/clients data/profiles data/usage data/audit
+mkdir -p /opt/wireguard-manager/data /opt/wireguard-manager/backups /opt/wireguard-manager/logs
+mkdir -p /opt/wireguard-manager/data/clients /opt/wireguard-manager/data/profiles /opt/wireguard-manager/data/usage /opt/wireguard-manager/data/audit
 
 # Set permissions
 chown -R www-data:www-data /opt/wireguard-manager
@@ -205,15 +214,28 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/wg
 www-data ALL=(ALL) NOPASSWD: /usr/bin/wg-quick
 EOF
 
+chmod 440 /etc/sudoers.d/wireguard-manager
+
 # Set up systemd service
-cp /opt/wireguard-manager/deployment/wireguard-manager.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable wireguard-manager
-systemctl start wireguard-manager
+echo "Setting up systemd service..."
+if [ -f /opt/wireguard-manager/deployment/wireguard-manager.service ]; then
+    cp /opt/wireguard-manager/deployment/wireguard-manager.service /etc/systemd/system/
+    systemctl daemon-reload
+    systemctl enable wireguard-manager
+    systemctl start wireguard-manager
+else
+    echo "ERROR: wireguard-manager.service file not found!"
+    exit 1
+fi
 
 # Configure Nginx
 echo "Configuring Nginx..."
-cp /opt/wireguard-manager/deployment/nginx.conf /etc/nginx/sites-available/wireguard-manager
+if [ -f /opt/wireguard-manager/deployment/nginx.conf ]; then
+    cp /opt/wireguard-manager/deployment/nginx.conf /etc/nginx/sites-available/wireguard-manager
+else
+    echo "ERROR: nginx.conf file not found!"
+    exit 1
+fi
 sed -i "s/your-domain.com/$DOMAIN/g" /etc/nginx/sites-available/wireguard-manager
 ln -sf /etc/nginx/sites-available/wireguard-manager /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
