@@ -5,9 +5,10 @@
 ✅ **500 Internal Server Error** - Fixed WireGuard command permissions  
 ✅ **Dashboard Errors** - Added comprehensive error handling  
 ✅ **Profile Creation** - Enhanced wizard with 6 presets  
-✅ **Profile QR Codes & Downloads** - Fixed config generation errors  
+✅ **Profile QR Codes & Downloads** - Fixed config generation errors (sudo path issue)  
 ✅ **Clients & Usage Pages** - Fixed 500 errors with proper error handling  
 ✅ **Better UX** - Live preview, MTU options, persistent keepalive  
+✅ **Health Monitoring** - Added service status display and health check API  
 
 ## 🚀 Update on Server
 
@@ -157,6 +158,8 @@ sudo systemctl status nginx
 ## ✅ Expected Behavior After Update
 
 - ✅ Dashboard loads without errors
+- ✅ Shows WireGuard service status badge (green/red)
+- ✅ Displays service active, interface up, peer count
 - ✅ Shows connected clients count
 - ✅ Displays data usage stats
 - ✅ Clients page displays properly (no 500 errors)
@@ -166,6 +169,7 @@ sudo systemctl status nginx
 - ✅ Profile QR codes generate correctly
 - ✅ Profile configs download successfully
 - ✅ Click profile name to see details
+- ✅ Health check API available at /health
 - ✅ No 500 errors on any page
 
 ## 🎉 Success!
@@ -181,11 +185,39 @@ After updating:
 
 ## 🆕 New Features to Try
 
+### WireGuard Service Status Monitor
+1. Open **Dashboard**
+2. See status badge at top:
+   - **Green**: Service running & healthy ✅
+   - **Red**: Service issues detected ⚠️
+   - **Gray**: Status unknown ❓
+3. Shows: Service active, Interface up, Active peers
+
+### Health Check API
+```bash
+# Check system health
+curl https://sgvpn.parthh.com/health
+
+# Returns JSON:
+{
+  "status": "healthy",
+  "wireguard": {
+    "service_active": true,
+    "interface_up": true,
+    "peer_count": 5,
+    "status": "healthy"
+  },
+  "storage": "ok",
+  "version": "1.0.0"
+}
+```
+
 ### Profile QR Codes & Downloads
 1. Go to **Profiles** page
 2. Click **📱 QR** to see QR code for any profile
-3. Click **💾 Config** to download example configuration
+3. Click **💾 Config** to download configuration
 4. Click **profile name** to view full profile details with large QR code
+5. Configs have **real WireGuard keys** - ready to use!
 
 ### Enhanced Profile Creation
 1. Go to **Profiles** → **Create New Profile**
