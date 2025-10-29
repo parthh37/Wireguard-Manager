@@ -150,20 +150,18 @@ def qr_code(profile_id):
         private_key, public_key = wg.generate_keypair()
         preshared_key = wg.generate_preshared_key()
         
-        # Create example configuration
-        config = wg.generate_client_config(
-            client_name=f"Example-{profile['name']}",
-            private_key=private_key,
-            ip_address='10.0.0.X',
-            ipv6_address='2001:db8::X' if Config.WG_IPV6_ENABLED else '',
-            server_public_key=Config.WG_SERVER_PUBLIC_KEY,
-            preshared_key=preshared_key,
-            allowed_ips=profile.get('allowed_ips', '0.0.0.0/0,::/0'),
-            dns=profile.get('dns', '1.1.1.1'),
-            endpoint=f"{Config.SERVER_PUBLIC_IP}:{Config.WG_SERVER_PORT}",
-            persistent_keepalive=profile.get('persistent_keepalive', ''),
-            mtu=profile.get('mtu', '1420')
-        )
+        # Create example client dict for config generation
+        example_client = {
+            'name': f"Example-{profile['name']}",
+            'private_key': private_key,
+            'public_key': public_key,
+            'preshared_key': preshared_key,
+            'ip_address': '10.0.0.X',
+            'ipv6_address': '2001:db8::X' if Config.WG_IPV6_ENABLED else None
+        }
+        
+        # Generate configuration using proper method signature
+        config = wg.generate_client_config(example_client, profile)
         
         # Generate QR code
         qr_buffer = generate_qr_code(config)
@@ -189,20 +187,18 @@ def download(profile_id):
         private_key, public_key = wg.generate_keypair()
         preshared_key = wg.generate_preshared_key()
         
-        # Create example configuration
-        config = wg.generate_client_config(
-            client_name=f"Example-{profile['name']}",
-            private_key=private_key,
-            ip_address='10.0.0.X',
-            ipv6_address='2001:db8::X' if Config.WG_IPV6_ENABLED else '',
-            server_public_key=Config.WG_SERVER_PUBLIC_KEY,
-            preshared_key=preshared_key,
-            allowed_ips=profile.get('allowed_ips', '0.0.0.0/0,::/0'),
-            dns=profile.get('dns', '1.1.1.1'),
-            endpoint=f"{Config.SERVER_PUBLIC_IP}:{Config.WG_SERVER_PORT}",
-            persistent_keepalive=profile.get('persistent_keepalive', ''),
-            mtu=profile.get('mtu', '1420')
-        )
+        # Create example client dict for config generation
+        example_client = {
+            'name': f"Example-{profile['name']}",
+            'private_key': private_key,
+            'public_key': public_key,
+            'preshared_key': preshared_key,
+            'ip_address': '10.0.0.X',
+            'ipv6_address': '2001:db8::X' if Config.WG_IPV6_ENABLED else None
+        }
+        
+        # Generate configuration using proper method signature
+        config = wg.generate_client_config(example_client, profile)
         
         # Add note at the top
         config_with_note = f"""# Example Configuration for Profile: {profile['name']}
