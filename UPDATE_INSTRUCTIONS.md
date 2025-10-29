@@ -5,6 +5,8 @@
 ✅ **500 Internal Server Error** - Fixed WireGuard command permissions  
 ✅ **Dashboard Errors** - Added comprehensive error handling  
 ✅ **Profile Creation** - Enhanced wizard with 6 presets  
+✅ **Profile QR Codes & Downloads** - Fixed config generation errors  
+✅ **Clients & Usage Pages** - Fixed 500 errors with proper error handling  
 ✅ **Better UX** - Live preview, MTU options, persistent keepalive  
 
 ## 🚀 Update on Server
@@ -116,24 +118,54 @@ sudo systemctl status nginx
    - Graceful error handling
    - Returns default values if WireGuard unavailable
 
-3. **`templates/profiles/add.html`**
+3. **`routes/clients.py`**
+   - Fixed 500 errors with comprehensive error handling
+   - Protected WireGuard stats retrieval
+   - Graceful fallback for missing data
+
+4. **`routes/usage.py`**
+   - Fixed 500 errors with try-catch blocks
+   - Protected historical data access
+   - Error-safe chart rendering
+
+5. **`routes/profiles.py`**
+   - Support for new profile options (MTU, keepalive)
+   - Added QR code generation route
+   - Added config download route
+   - Fixed method signature for config generation
+   - View profile details page
+
+6. **`templates/profiles/add.html`**
    - Added 6 preset buttons
    - Live configuration preview
    - Persistent keepalive checkbox
    - Custom MTU option
    - Better form descriptions
 
-4. **`routes/profiles.py`**
-   - Support for new profile options
-   - MTU and keepalive fields
+7. **`templates/profiles/list.html`**
+   - Added QR code button (📱 QR)
+   - Added download button (💾 Config)
+   - Clickable profile names
+   - Enhanced action buttons
+
+8. **`templates/profiles/view.html`** *(NEW)*
+   - Profile detail view page
+   - Large QR code display
+   - Config preview
+   - Profile usage stats
 
 ## ✅ Expected Behavior After Update
 
 - ✅ Dashboard loads without errors
 - ✅ Shows connected clients count
 - ✅ Displays data usage stats
+- ✅ Clients page displays properly (no 500 errors)
+- ✅ Usage page shows statistics (no 500 errors)
 - ✅ Profile wizard has preset buttons
 - ✅ Live preview updates as you type
+- ✅ Profile QR codes generate correctly
+- ✅ Profile configs download successfully
+- ✅ Click profile name to see details
 - ✅ No 500 errors on any page
 
 ## 🎉 Success!
@@ -141,8 +173,32 @@ sudo systemctl status nginx
 After updating:
 1. Dashboard works ✅
 2. Client list loads ✅
-3. Profiles have new wizard ✅
-4. Enhanced UX with presets ✅
+3. Usage page displays ✅
+4. Profiles have new wizard ✅
+5. QR codes generate properly ✅
+6. Config downloads work ✅
+7. Enhanced UX with presets ✅
+
+## 🆕 New Features to Try
+
+### Profile QR Codes & Downloads
+1. Go to **Profiles** page
+2. Click **📱 QR** to see QR code for any profile
+3. Click **💾 Config** to download example configuration
+4. Click **profile name** to view full profile details with large QR code
+
+### Enhanced Profile Creation
+1. Go to **Profiles** → **Create New Profile**
+2. Choose from 6 presets:
+   - 🌍 Full Tunnel (all traffic)
+   - 🔀 Split Tunnel (VPN network only)
+   - 🌐 IPv6 Services (public hosting)
+   - 🎮 Gaming (low latency)
+   - 📺 Streaming (optimized)
+   - 🔒 Privacy + Ad Block
+3. See live preview as you customize
+4. Add persistent keepalive for mobile devices
+5. Adjust MTU if needed
 
 **Questions? Check logs:**
 ```bash
