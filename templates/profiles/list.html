@@ -28,16 +28,18 @@
         <tbody>
             {% for profile in profiles %}
             <tr>
-                <td><strong>{{ profile.name }}</strong></td>
+                <td><strong><a href="{{ url_for('profiles.view', profile_id=profile.id) }}" style="color: #3498db; text-decoration: none;">{{ profile.name }}</a></strong></td>
                 <td>{{ profile.description }}</td>
                 <td><code>{{ profile.allowed_ips }}</code></td>
                 <td><code>{{ profile.dns }}</code></td>
                 <td>{{ profile.client_count }}</td>
                 <td>
-                    <a href="{{ url_for('profiles.edit', profile_id=profile.id) }}" class="btn btn-primary btn-sm">Edit</a>
+                    <a href="{{ url_for('profiles.qr_code', profile_id=profile.id) }}" class="btn btn-secondary btn-sm" target="_blank" title="View Example QR Code">📱 QR</a>
+                    <a href="{{ url_for('profiles.download', profile_id=profile.id) }}" class="btn btn-secondary btn-sm" title="Download Example Config">💾 Config</a>
+                    <a href="{{ url_for('profiles.edit', profile_id=profile.id) }}" class="btn btn-primary btn-sm">✏️ Edit</a>
                     {% if profile.client_count == 0 %}
                     <form method="POST" action="{{ url_for('profiles.delete', profile_id=profile.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this profile?');">
-                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        <button type="submit" class="btn btn-danger btn-sm">🗑️ Delete</button>
                     </form>
                     {% endif %}
                 </td>

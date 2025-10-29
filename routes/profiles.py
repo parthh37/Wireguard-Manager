@@ -1,11 +1,15 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from utils.auth import login_required, log_action
 from utils.storage import DataStore
+from utils.wireguard import WireGuardManager
+from utils.helpers import generate_qr_code
 from config import Config
 import uuid
+import io
 
 profiles_bp = Blueprint('profiles', __name__)
 store = DataStore()
+wg = WireGuardManager()
 
 @profiles_bp.route('/')
 @login_required
@@ -21,6 +25,27 @@ def index():
         profile['client_count'] = len([c for c in clients if c.get('profile_id') == profile['id']])
     
     return render_template('profiles/list.html', profiles=profiles)
+
+@profiles_bp.route('/<profile_id>')
+@login_required
+def view(profile_id):
+    """View profile details"""
+    profile = store.get_profile(profile_id)
+    if not profile:
+        flash('Profile not found', 'error')
+        return redirect(url_for('profiles.index'))
+    
+    # Count clients using this profile
+    clients = store.get_all_clients()
+    profile['client_count'] = len([c for c in clients if c.get('profile_id') == profile_id])
+    
+    log_action('VIEW_PROFILE', {'profile_id': profile_id, 'name': profile.get('name')})
+    
+    return render_template('profiles/view.html', 
+                         profile=profile,
+                         server_public_key=Config.WG_SERVER_PUBLIC_KEY,
+                         server_endpoint=f"{Config.SERVER_PUBLIC_IP}:{Config.WG_SERVER_PORT}",
+                         ipv6_enabled=Config.WG_IPV6_ENABLED)
 
 @profiles_bp.route('/add', methods=['GET', 'POST'])
 @login_required
@@ -110,5 +135,96 @@ def delete(profile_id):
     
     flash(f'Profile "{profile["name"]}" deleted successfully', 'success')
     return redirect(url_for('profiles.index'))
+
+@profiles_bp.route('/<profile_id>/qr')
+@login_required
+def qr_code(profile_id):
+    """Generate QR code for profile (as example config)"""
+    profile = store.get_profile(profile_id)
+    if not profile:
+        flash('Profile not found', 'error')
+        return redirect(url_for('profiles.index'))
+    
+    try:
+        # Generate example keys for demonstration
+        private_key, public_key = wg.generate_keypair()
+        preshared_key = wg.generate_preshared_key()
+        
+        # Create example configuration
+        config = wg.generate_client_config(
+            client_name=f"Example-{profile['name']}",
+            private_key=private_key,
+            ip_address='10.0.0.X',
+            ipv6_address='2001:db8::X' if Config.WG_IPV6_ENABLED else '',
+            server_public_key=Config.WG_SERVER_PUBLIC_KEY,
+            preshared_key=preshared_key,
+            allowed_ips=profile.get('allowed_ips', '0.0.0.0/0,::/0'),
+            dns=profile.get('dns', '1.1.1.1'),
+            endpoint=f"{Config.SERVER_PUBLIC_IP}:{Config.WG_SERVER_PORT}",
+            persistent_keepalive=profile.get('persistent_keepalive', ''),
+            mtu=profile.get('mtu', '1420')
+        )
+        
+        # Generate QR code
+        qr_buffer = generate_qr_code(config)
+        log_action('PROFILE_QR_VIEWED', {'profile_id': profile_id, 'name': profile.get('name')})
+        
+        return send_file(qr_buffer, mimetype='image/png')
+    except Exception as e:
+        print(f"Error generating QR code: {e}")
+        flash('Error generating QR code', 'error')
+        return redirect(url_for('profiles.index'))
+
+@profiles_bp.route('/<profile_id>/download')
+@login_required
+def download(profile_id):
+    """Download profile configuration (as example)"""
+    profile = store.get_profile(profile_id)
+    if not profile:
+        flash('Profile not found', 'error')
+        return redirect(url_for('profiles.index'))
+    
+    try:
+        # Generate example keys for demonstration
+        private_key, public_key = wg.generate_keypair()
+        preshared_key = wg.generate_preshared_key()
+        
+        # Create example configuration
+        config = wg.generate_client_config(
+            client_name=f"Example-{profile['name']}",
+            private_key=private_key,
+            ip_address='10.0.0.X',
+            ipv6_address='2001:db8::X' if Config.WG_IPV6_ENABLED else '',
+            server_public_key=Config.WG_SERVER_PUBLIC_KEY,
+            preshared_key=preshared_key,
+            allowed_ips=profile.get('allowed_ips', '0.0.0.0/0,::/0'),
+            dns=profile.get('dns', '1.1.1.1'),
+            endpoint=f"{Config.SERVER_PUBLIC_IP}:{Config.WG_SERVER_PORT}",
+            persistent_keepalive=profile.get('persistent_keepalive', ''),
+            mtu=profile.get('mtu', '1420')
+        )
+        
+        # Add note at the top
+        config_with_note = f"""# Example Configuration for Profile: {profile['name']}
+# This is a template - actual client configs will have real keys and IPs
+# {profile.get('description', '')}
+
+{config}"""
+        
+        # Create file buffer
+        buffer = io.BytesIO(config_with_note.encode('utf-8'))
+        buffer.seek(0)
+        
+        log_action('PROFILE_CONFIG_DOWNLOADED', {'profile_id': profile_id, 'name': profile.get('name')})
+        
+        filename = f"{profile['name'].replace(' ', '_')}_example.conf"
+        return send_file(buffer, 
+                        mimetype='text/plain',
+                        as_attachment=True,
+                        download_name=filename)
+    except Exception as e:
+        print(f"Error generating config: {e}")
+        flash('Error generating configuration', 'error')
+        return redirect(url_for('profiles.index'))
 
 from datetime import datetime

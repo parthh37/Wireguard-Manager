@@ -16,44 +16,59 @@ wg = WireGuardManager()
 @login_required
 def index():
     """List all clients"""
-    log_action('VIEW_CLIENTS', {})
-    
-    clients = store.get_all_clients()
-    profiles = store.get_all_profiles()
-    stats = wg.get_interface_stats()
-    
-    # Enrich clients with stats
-    peer_stats = {p['public_key']: p for p in stats.get('peers', [])}
-    
-    for client in clients:
-        peer = peer_stats.get(client.get('public_key'))
-        if peer:
-            client['stats'] = {
-                'connected': peer['latest_handshake'] > 0 and (datetime.now().timestamp() - peer['latest_handshake'] < 180),
-                'last_handshake': format_timestamp(peer['latest_handshake']),
-                'transfer_rx': format_bytes(peer['transfer_rx']),
-                'transfer_tx': format_bytes(peer['transfer_tx']),
-                'transfer_total': format_bytes(peer['transfer_rx'] + peer['transfer_tx'])
-            }
-        else:
-            client['stats'] = {
-                'connected': False,
-                'last_handshake': 'Never',
-                'transfer_rx': '0 B',
-                'transfer_tx': '0 B',
-                'transfer_total': '0 B'
-            }
+    try:
+        log_action('VIEW_CLIENTS', {})
         
-        # Check expiry
-        if client.get('expiry_date'):
-            expiry = datetime.fromisoformat(client['expiry_date'])
-            client['is_expired'] = datetime.now() > expiry
-            client['expiry_formatted'] = expiry.strftime('%Y-%m-%d %H:%M')
-        else:
-            client['is_expired'] = False
-            client['expiry_formatted'] = 'Never'
-    
-    return render_template('clients/list.html', clients=clients, profiles=profiles)
+        clients = store.get_all_clients()
+        profiles = store.get_all_profiles()
+        
+        # Get stats with error handling
+        peer_stats = {}
+        try:
+            stats = wg.get_interface_stats()
+            peer_stats = {p['public_key']: p for p in stats.get('peers', [])}
+        except Exception as e:
+            print(f"Warning: Could not get WireGuard stats: {e}")
+        
+        for client in clients:
+            peer = peer_stats.get(client.get('public_key'))
+            if peer:
+                client['stats'] = {
+                    'connected': peer['latest_handshake'] > 0 and (datetime.now().timestamp() - peer['latest_handshake'] < 180),
+                    'last_handshake': format_timestamp(peer['latest_handshake']),
+                    'transfer_rx': format_bytes(peer['transfer_rx']),
+                    'transfer_tx': format_bytes(peer['transfer_tx']),
+                    'transfer_total': format_bytes(peer['transfer_rx'] + peer['transfer_tx'])
+                }
+            else:
+                client['stats'] = {
+                    'connected': False,
+                    'last_handshake': 'Never',
+                    'transfer_rx': '0 B',
+                    'transfer_tx': '0 B',
+                    'transfer_total': '0 B'
+                }
+            
+            # Check expiry
+            if client.get('expiry_date'):
+                try:
+                    expiry = datetime.fromisoformat(client['expiry_date'])
+                    client['is_expired'] = datetime.now() > expiry
+                    client['expiry_formatted'] = expiry.strftime('%Y-%m-%d %H:%M')
+                except:
+                    client['is_expired'] = False
+                    client['expiry_formatted'] = 'Invalid date'
+            else:
+                client['is_expired'] = False
+                client['expiry_formatted'] = 'Never'
+        
+        return render_template('clients/list.html', clients=clients, profiles=profiles)
+    except Exception as e:
+        print(f"Error in clients list: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error loading clients. Please check logs.', 'error')
+        return render_template('clients/list.html', clients=[], profiles=[])
 
 @clients_bp.route('/add', methods=['GET', 'POST'])
 @login_required

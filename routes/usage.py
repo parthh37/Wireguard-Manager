@@ -13,58 +13,73 @@ wg = WireGuardManager()
 @login_required
 def index():
     """Usage tracking page"""
-    log_action('VIEW_USAGE', {})
-    
-    clients = store.get_all_clients()
-    stats = wg.get_interface_stats()
-    
-    # Get current usage
-    peer_stats = {p['public_key']: p for p in stats.get('peers', [])}
-    
-    client_usage = []
-    for client in clients:
-        peer = peer_stats.get(client.get('public_key'))
-        if peer:
-            client_usage.append({
-                'id': client['id'],
-                'name': client['name'],
-                'ip_address': client['ip_address'],
-                'transfer_rx': peer['transfer_rx'],
-                'transfer_tx': peer['transfer_tx'],
-                'transfer_total': peer['transfer_rx'] + peer['transfer_tx'],
-                'transfer_rx_formatted': format_bytes(peer['transfer_rx']),
-                'transfer_tx_formatted': format_bytes(peer['transfer_tx']),
-                'transfer_total_formatted': format_bytes(peer['transfer_rx'] + peer['transfer_tx'])
-            })
-        else:
-            client_usage.append({
-                'id': client['id'],
-                'name': client['name'],
-                'ip_address': client['ip_address'],
-                'transfer_rx': 0,
-                'transfer_tx': 0,
-                'transfer_total': 0,
-                'transfer_rx_formatted': '0 B',
-                'transfer_tx_formatted': '0 B',
-                'transfer_total_formatted': '0 B'
-            })
-    
-    # Sort by total usage
-    client_usage.sort(key=lambda x: x['transfer_total'], reverse=True)
-    
-    # Get historical data
-    today = datetime.now()
-    dates = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30, -1, -1)]
-    
-    historical_data = []
-    for date in dates:
-        snapshot = store.get_usage_snapshot(date)
-        if snapshot:
-            historical_data.append(snapshot)
-    
-    return render_template('usage/index.html', 
-                         client_usage=client_usage,
-                         historical_data=historical_data)
+    try:
+        log_action('VIEW_USAGE', {})
+        
+        clients = store.get_all_clients()
+        
+        # Get stats with error handling
+        peer_stats = {}
+        try:
+            stats = wg.get_interface_stats()
+            peer_stats = {p['public_key']: p for p in stats.get('peers', [])}
+        except Exception as e:
+            print(f"Warning: Could not get WireGuard stats: {e}")
+        
+        client_usage = []
+        for client in clients:
+            peer = peer_stats.get(client.get('public_key'))
+            if peer:
+                client_usage.append({
+                    'id': client['id'],
+                    'name': client['name'],
+                    'ip_address': client['ip_address'],
+                    'transfer_rx': peer['transfer_rx'],
+                    'transfer_tx': peer['transfer_tx'],
+                    'transfer_total': peer['transfer_rx'] + peer['transfer_tx'],
+                    'transfer_rx_formatted': format_bytes(peer['transfer_rx']),
+                    'transfer_tx_formatted': format_bytes(peer['transfer_tx']),
+                    'transfer_total_formatted': format_bytes(peer['transfer_rx'] + peer['transfer_tx'])
+                })
+            else:
+                client_usage.append({
+                    'id': client['id'],
+                    'name': client['name'],
+                    'ip_address': client['ip_address'],
+                    'transfer_rx': 0,
+                    'transfer_tx': 0,
+                    'transfer_total': 0,
+                    'transfer_rx_formatted': '0 B',
+                    'transfer_tx_formatted': '0 B',
+                    'transfer_total_formatted': '0 B'
+                })
+        
+        # Sort by total usage
+        client_usage.sort(key=lambda x: x['transfer_total'], reverse=True)
+        
+        # Get historical data
+        historical_data = []
+        try:
+            today = datetime.now()
+            dates = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30, -1, -1)]
+            
+            for date in dates:
+                snapshot = store.get_usage_snapshot(date)
+                if snapshot:
+                    historical_data.append(snapshot)
+        except Exception as e:
+            print(f"Warning: Could not get historical data: {e}")
+        
+        return render_template('usage/index.html', 
+                             client_usage=client_usage,
+                             historical_data=historical_data)
+    except Exception as e:
+        print(f"Error in usage page: {e}")
+        import traceback
+        traceback.print_exc()
+        return render_template('usage/index.html', 
+                             client_usage=[],
+                             historical_data=[])
 
 @usage_bp.route('/api/chart-data')
 @login_required

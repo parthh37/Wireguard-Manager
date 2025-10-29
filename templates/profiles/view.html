@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile.name }} - Profile Details{% endblock %}
+
+{% block content %}
+<div class="flex-between">
+    <h1>📋 {{ profile.name }}</h1>
+    <div>
+        <a href="{{ url_for('profiles.edit', profile_id=profile.id) }}" class="btn btn-primary">✏️ Edit Profile</a>
+        <a href="{{ url_for('profiles.index') }}" class="btn btn-secondary">Back to List</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Profile Information</h2>
+    
+    <div style="display: grid; grid-template-columns: 200px 1fr; gap: 1rem; margin: 1rem 0;">
+        <div><strong>Name:</strong></div>
+        <div>{{ profile.name }}</div>
+        
+        <div><strong>Description:</strong></div>
+        <div>{{ profile.description or 'No description' }}</div>
+        
+        <div><strong>Allowed IPs:</strong></div>
+        <div><code style="background: #ecf0f1; padding: 0.25rem 0.5rem; border-radius: 3px;">{{ profile.allowed_ips }}</code></div>
+        
+        <div><strong>DNS Servers:</strong></div>
+        <div><code style="background: #ecf0f1; padding: 0.25rem 0.5rem; border-radius: 3px;">{{ profile.dns }}</code></div>
+        
+        {% if profile.persistent_keepalive %}
+        <div><strong>Keepalive:</strong></div>
+        <div>{{ profile.persistent_keepalive }}s</div>
+        {% endif %}
+        
+        {% if profile.mtu and profile.mtu != '1420' %}
+        <div><strong>MTU:</strong></div>
+        <div>{{ profile.mtu }}</div>
+        {% endif %}
+        
+        <div><strong>Clients Using:</strong></div>
+        <div>{{ profile.client_count }} client(s)</div>
+        
+        <div><strong>Created:</strong></div>
+        <div>{{ profile.created_at[:10] if profile.created_at else 'Unknown' }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📱 Example QR Code</h2>
+    <p style="color: #7f8c8d; margin-bottom: 1rem;">
+        This is an example configuration for this profile. Actual client configs will have unique keys and IP addresses.
+    </p>
+    
+    <div style="text-align: center; padding: 2rem; background: white; border-radius: 8px; border: 2px dashed #ddd;">
+        <img src="{{ url_for('profiles.qr_code', profile_id=profile.id) }}" 
+             alt="Profile QR Code" 
+             style="max-width: 400px; width: 100%;">
+    </div>
+    
+    <div style="margin-top: 1rem; text-align: center;">
+        <a href="{{ url_for('profiles.qr_code', profile_id=profile.id) }}" 
+           class="btn btn-secondary" 
+           download="{{ profile.name }}_qr.png"
+           target="_blank">
+            💾 Download QR Code
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>💾 Example Configuration</h2>
+    <p style="color: #7f8c8d; margin-bottom: 1rem;">
+        Preview of what a client configuration with this profile would look like.
+    </p>
+    
+    <pre style="background: #2c3e50; color: #ecf0f1; padding: 1.5rem; border-radius: 5px; overflow-x: auto; font-size: 0.9em;"># Example Configuration for Profile: {{ profile.name }}
+# {{ profile.description }}
+
+[Interface]
+PrivateKey = [UNIQUE_CLIENT_KEY]
+Address = 10.0.0.X/32{% if ipv6_enabled %}, 2a11:8083:11:13f0::X/128{% endif %}
+
+DNS = {{ profile.dns }}
+{% if profile.mtu and profile.mtu != '1420' %}MTU = {{ profile.mtu }}{% endif %}
+
+
+[Peer]
+PublicKey = {{ server_public_key }}
+PresharedKey = [UNIQUE_PRESHARED_KEY]
+Endpoint = {{ server_endpoint }}
+AllowedIPs = {{ profile.allowed_ips }}
+{% if profile.persistent_keepalive %}PersistentKeepalive = {{ profile.persistent_keepalive }}{% endif %}</pre>
+    
+    <div style="margin-top: 1rem;">
+        <a href="{{ url_for('profiles.download', profile_id=profile.id) }}" 
+           class="btn btn-primary">
+            💾 Download Example Config
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>🎯 What This Profile Does</h2>
+    
+    {% set ips = profile.allowed_ips %}
+    {% if '0.0.0.0/0' in ips or '::/0' in ips %}
+    <div style="background: #3498db; color: white; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
+        <strong>🌍 Full Tunnel Mode</strong><br>
+        All internet traffic will go through the VPN. Provides maximum privacy and security.
+    </div>
+    {% elif '10.0.0.0' in ips or '192.168' in ips %}
+    <div style="background: #2ecc71; color: white; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
+        <strong>🔀 Split Tunnel Mode</strong><br>
+        Only specific traffic goes through VPN. Faster for general browsing while accessing VPN resources.
+    </div>
+    {% else %}
+    <div style="background: #9b59b6; color: white; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
+        <strong>🎨 Custom Configuration</strong><br>
+        This profile uses custom routing rules for specific use cases.
+    </div>
+    {% endif %}
+    
+    <h3>Traffic Routing:</h3>
+    <p><code>{{ profile.allowed_ips }}</code></p>
+    <p style="color: #7f8c8d; font-size: 0.9em;">
+        {% if '0.0.0.0/0' in ips %}
+        All IPv4 traffic will be routed through the VPN.
+        {% endif %}
+        {% if '::/0' in ips %}
+        All IPv6 traffic will be routed through the VPN.
+        {% endif %}
+    </p>
+    
+    <h3>DNS Resolution:</h3>
+    <p><code>{{ profile.dns }}</code></p>
+    <p style="color: #7f8c8d; font-size: 0.9em;">
+        {% if '1.1.1.1' in profile.dns %}
+        Using Cloudflare DNS - Fast and privacy-focused
+        {% elif '8.8.8.8' in profile.dns %}
+        Using Google DNS - Reliable and fast
+        {% elif '9.9.9.9' in profile.dns %}
+        Using Quad9 DNS - Security focused with malware blocking
+        {% else %}
+        Custom DNS servers configured
+        {% endif %}
+    </p>
+</div>
+
+{% endblock %}
